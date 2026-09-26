@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -14,10 +15,23 @@ export default async function CoursesPage() {
     },
     orderBy: { createdAt: "desc" },
   });
+  const session = await auth();
+  const canCreateCourse =
+    session?.user.role === "TEACHER" || session?.user.role === "ADMIN";
 
   return (
     <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-bold mb-6">Available Courses</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Available Courses</h1>
+        {canCreateCourse && (
+          <Link
+            href="/courses/new"
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700"
+          >
+            + Create Course
+          </Link>
+        )}
+      </div>
 
       {courses.length === 0 ? (
         <p className="text-gray-500">No courses available yet.</p>
