@@ -27,4 +27,43 @@ model User{
   role      Role     @default(STUDENT)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  courses   Course[]
+  enrollments Enrollment[]
+}
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  lessons     Lesson[]
+  enrollmets Enrollment[]
+}
+model Lesson {
+  id          String   @id @default(cuid())
+  title       String
+  textContent String?
+  videoUrl    String?
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+}
+model Enrollment {
+  id         String   @id @default(cuid())
+  enrolledAt DateTime @default(now())
+
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id])
+
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
 }
