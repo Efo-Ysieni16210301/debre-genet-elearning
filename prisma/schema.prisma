@@ -41,7 +41,7 @@ model Course {
   teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id])
   lessons     Lesson[]
-  enrollmets Enrollment[]
+  enrollments Enrollment[]
 }
 model Lesson {
   id          String   @id @default(cuid())
