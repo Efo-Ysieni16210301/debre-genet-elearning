@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  reactCompiler: false,
+  outputFileTracingIncludes: {
+    "/**/*": ["./src/generated/prisma/**/*"],
+  },
 };
 
 export default nextConfig;
