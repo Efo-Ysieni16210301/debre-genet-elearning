@@ -1,6 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { notFound } from "next/navigation";
+import { enrollInCourse } from "../actions";
+import { getYouTubeEmbedUrl } from "@/lib/video";
+
+function LessonVideo({ url }: { url: string }) {
+  const youtubeEmbedUrl = getYouTubeEmbedUrl(url);
+
+  if (youtubeEmbedUrl) {
+    return (
+      <iframe
+        src={youtubeEmbedUrl}
+        className="mt-3 w-full aspect-video rounded"
+        allowFullScreen
+      />
+    );
+  }
+
+  return <video src={url} controls className="mt-3 w-full rounded" />;
+}
 
 export default async function CourseDetailPage({
   params,
@@ -52,6 +70,17 @@ export default async function CourseDetailPage({
         Taught by {course.teacher.name}
       </p>
 
+      {session?.user.role === "STUDENT" && !isEnrolled && (
+        <form action={enrollInCourse.bind(null, course.id)} className="mt-4">
+          <button
+            type="submit"
+            className="bg-green-600 text-white px-4 py-2 rounded font-medium hover:bg-green-700"
+          >
+            Enroll in this Course
+          </button>
+        </form>
+      )}
+
       <div className="mt-8">
         <h2 className="text-lg font-semibold mb-3">Lessons</h2>
 
@@ -72,13 +101,7 @@ export default async function CourseDetailPage({
                       {lesson.textContent}
                     </p>
                   )}
-                  {lesson.videoUrl && (
-                    <video
-                      src={lesson.videoUrl}
-                      controls
-                      className="mt-3 w-full rounded"
-                    />
-                  )}
+                  {lesson.videoUrl && <LessonVideo url={lesson.videoUrl} />}
                 </>
               ) : (
                 <p className="text-sm text-gray-400 mt-1">🔒 Locked</p>
