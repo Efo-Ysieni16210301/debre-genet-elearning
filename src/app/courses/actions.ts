@@ -144,3 +144,55 @@ export async function enrollInCourse(courseId: string) {
 
   revalidatePath(`/courses/${courseId}`);
 }
+export async function toggleLessonComplete(courseId: string, lessonId: string) {
+  const session = await auth();
+
+  if (!session) {
+    throw new Error("You must be logged in.");
+  }
+
+  const enrollment = await prisma.enrollment.findUnique({
+    where: {
+      studentId_courseId: {
+        studentId: session.user.id,
+        courseId,
+      },
+    },
+  });
+
+  if (!enrollment) {
+    throw new Error("You must be enrolled in this course.");
+  }
+
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+  });
+
+  if (!lesson || lesson.courseId !== courseId) {
+    throw new Error("Lesson not found in this course.");
+  }
+
+  const existing = await prisma.lessonProgress.findUnique({
+    where: {
+      studentId_lessonId: {
+        studentId: session.user.id,
+        lessonId,
+      },
+    },
+  });
+
+  if (existing) {
+    await prisma.lessonProgress.delete({
+      where: { id: existing.id },
+    });
+  } else {
+    await prisma.lessonProgress.create({
+      data: {
+        studentId: session.user.id,
+        lessonId,
+      },
+    });
+  }
+
+  revalidatePath(`/courses/${courseId}`);
+}

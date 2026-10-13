@@ -29,6 +29,7 @@ model User{
   updatedAt DateTime @updatedAt
   courses   Course[]
   enrollments Enrollment[]
+    progress    LessonProgress[]
 }
 model Course {
   id          String   @id @default(cuid())
@@ -54,6 +55,7 @@ model Lesson {
 
   courseId    String
   course      Course   @relation(fields: [courseId], references: [id])
+    progress    LessonProgress[]
 }
 model Enrollment {
   id         String   @id @default(cuid())
@@ -66,4 +68,16 @@ model Enrollment {
   course     Course   @relation(fields: [courseId], references: [id])
 
   @@unique([studentId, courseId])
+}
+model LessonProgress {
+  id          String   @id @default(cuid())
+  completedAt DateTime @default(now())
+
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
 }
