@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/auth.config";
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_WINDOW_MS = 15 * 60 * 1000;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers: [
@@ -18,7 +21,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .toLowerCase();
         const password = credentials.password as string | undefined;
 
-        if (!email || !password) {
+        if (!email || !password || email.length > 254) {
+          return null;
+        }
+
+        const windowStart = new Date(Date.now() - LOCK_WINDOW_MS);
+
+        const recentFailures = await prisma.loginAttempt.count({
+          where: { email, createdAt: { gte: windowStart } },
+        });
+
+        if (recentFailures >= MAX_FAILED_ATTEMPTS) {
           return null;
         }
 
@@ -26,15 +39,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email },
         });
 
-        if (!user) {
+        const passwordsMatch = user
+          ? await bcrypt.compare(password, user.password)
+          : false;
+
+        if (!user || !passwordsMatch) {
+          await prisma.loginAttempt.create({ data: { email } });
+          await prisma.loginAttempt.deleteMany({
+            where: { createdAt: { lt: windowStart } },
+          });
           return null;
         }
 
-        const passwordsMatch = await bcrypt.compare(password, user.password);
-
-        if (!passwordsMatch) {
-          return null;
-        }
+        await prisma.loginAttempt.deleteMany({ where: { email } });
 
         return {
           id: user.id,

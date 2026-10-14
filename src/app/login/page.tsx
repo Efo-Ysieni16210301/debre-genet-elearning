@@ -25,7 +25,9 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res?.error) {
-      setError("Invalid email or password.");
+      setError(
+        "Invalid email or password. After 5 failed attempts, you must wait 15 minutes.",
+      );
       return;
     }
 
