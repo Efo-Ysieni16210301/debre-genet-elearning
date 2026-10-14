@@ -30,6 +30,7 @@ model User{
   courses   Course[]
   enrollments Enrollment[]
     progress    LessonProgress[]
+      quizAttempts QuizAttempt[]
 }
 model Course {
   id          String   @id @default(cuid())
@@ -43,6 +44,7 @@ model Course {
   teacher     User     @relation(fields: [teacherId], references: [id])
   lessons     Lesson[]
   enrollments Enrollment[]
+    quizzes     Quiz[]
 }
 model Lesson {
   id          String   @id @default(cuid())
@@ -87,4 +89,50 @@ model LoginAttempt {
   createdAt DateTime @default(now())
 
   @@index([email, createdAt])
+}
+model Quiz {
+  id        String   @id @default(cuid())
+  title     String
+  createdAt DateTime @default(now())
+
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  questions Question[]
+  attempts  QuizAttempt[]
+}
+
+model Question {
+  id    String @id @default(cuid())
+  text  String
+  order Int
+
+  quizId  String
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  options Option[]
+}
+
+model Option {
+  id        String  @id @default(cuid())
+  text      String
+  isCorrect Boolean @default(false)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  score       Int
+  total       Int
+  completedAt DateTime @default(now())
+
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  quizId    String
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, quizId])
 }
