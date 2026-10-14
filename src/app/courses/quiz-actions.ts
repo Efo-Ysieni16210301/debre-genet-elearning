@@ -145,3 +145,69 @@ export async function deleteQuestion(
 
   revalidatePath(`/courses/${courseId}/quizzes/${quizId}/edit`);
 }
+export async function submitQuiz(
+  courseId: string,
+  quizId: string,
+  formData: FormData,
+) {
+  const session = await auth();
+
+  if (!session) {
+    throw new Error("You must be logged in.");
+  }
+
+  if (session.user.role !== "STUDENT") {
+    throw new Error("Only students can take quizzes.");
+  }
+
+  const enrollment = await prisma.enrollment.findUnique({
+    where: {
+      studentId_courseId: {
+        studentId: session.user.id,
+        courseId,
+      },
+    },
+  });
+
+  if (!enrollment) {
+    throw new Error("You must be enrolled in this course.");
+  }
+
+  const quiz = await prisma.quiz.findUnique({
+    where: { id: quizId },
+    include: { questions: { include: { options: true } } },
+  });
+
+  if (!quiz || quiz.courseId !== courseId) {
+    throw new Error("Quiz not found in this course.");
+  }
+
+  const total = quiz.questions.length;
+
+  if (total === 0) {
+    throw new Error("This quiz has no questions yet.");
+  }
+
+  let score = 0;
+
+  for (const question of quiz.questions) {
+    const chosen = formData.get(`q_${question.id}`);
+    const correct = question.options.find((option) => option.isCorrect);
+
+    if (correct && chosen === correct.id) {
+      score++;
+    }
+  }
+
+  const attempt = await prisma.quizAttempt.create({
+    data: {
+      score,
+      total,
+      studentId: session.user.id,
+      quizId,
+    },
+  });
+
+  revalidatePath(`/courses/${courseId}/quizzes/${quizId}`);
+  redirect(`/courses/${courseId}/quizzes/${quizId}/result/${attempt.id}`);
+}

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { enrollInCourse, toggleLessonComplete } from "../actions";
 import { getYouTubeEmbedUrl } from "@/lib/video";
 
@@ -36,6 +37,10 @@ export default async function CourseDetailPage({
       },
       lessons: {
         orderBy: { order: "asc" },
+      },
+      quizzes: {
+        orderBy: { createdAt: "asc" },
+        include: { _count: { select: { questions: true } } },
       },
     },
   });
@@ -73,6 +78,10 @@ export default async function CourseDetailPage({
   const isOwner = session?.user.id === course.teacherId;
   const canViewContent =
     isEnrolled || isOwner || session?.user.role === "ADMIN";
+
+  const takeableQuizzes = course.quizzes.filter(
+    (quiz) => quiz._count.questions > 0,
+  );
 
   const totalLessons = course.lessons.length;
   const completedCount = completedLessonIds.size;
@@ -176,6 +185,30 @@ export default async function CourseDetailPage({
           })}
         </ul>
       </div>
+
+      {isEnrolled && takeableQuizzes.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold mb-3">Quizzes</h2>
+          <ul className="space-y-2">
+            {takeableQuizzes.map((quiz) => (
+              <li
+                key={quiz.id}
+                className="border rounded p-3 text-sm flex justify-between items-center"
+              >
+                <span>
+                  {quiz.title} ({quiz._count.questions} questions)
+                </span>
+                <Link
+                  href={`/courses/${course.id}/quizzes/${quiz.id}`}
+                  className="text-blue-600 underline"
+                >
+                  Take quiz
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
