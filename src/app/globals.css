@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f5f6fa;
+  --ink: #151a2e;
+  --muted: #5b6178;
+  --rule: #d8dbe6;
+  --lapis: #243b7a;
+  --lapis-deep: #1a2b5c;
+  --saffron: #e3a21a;
+  --fern: #2e7d5b;
+  --madder: #a83a32;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-lapis: var(--lapis);
+  --color-lapis-deep: var(--lapis-deep);
+  --color-saffron: var(--saffron);
+  --color-fern: var(--fern);
+  --color-madder: var(--madder);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-geez: var(--font-ethiopic), "Noto Serif Ethiopic", serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+::selection {
+  background: var(--saffron);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--saffron);
+  outline-offset: 2px;
+}
+
+.tilet {
+  height: 8px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--saffron) 0 24px,
+    var(--madder) 24px 36px,
+    var(--fern) 36px 60px,
+    var(--lapis-deep) 60px 72px
+  );
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-sm px-5 py-2.5 text-[0.95rem] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+  .btn-primary {
+    @apply bg-lapis text-white hover:bg-lapis-deep;
+  }
+  .btn-accent {
+    @apply bg-saffron text-ink hover:brightness-95;
+  }
+  .btn-ghost {
+    @apply border border-rule bg-white text-ink hover:border-ink;
+  }
+  .btn-outline-light {
+    @apply border border-white/40 text-white hover:bg-white/10;
+  }
+  .btn-danger {
+    @apply bg-madder text-white hover:brightness-90;
+  }
+  .field {
+    @apply w-full rounded-sm border border-rule bg-white px-3 py-2.5 text-ink placeholder:text-muted focus:border-lapis;
+  }
 }

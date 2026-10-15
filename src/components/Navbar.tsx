@@ -1,70 +1,80 @@
 import Link from "next/link";
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
+
+import NavLink from "./NavLink";
+import MobileMenu from "./MobileMenu";
+import { logout } from "@/app/actions/auth";
 
 export default async function Navbar() {
   const session = await auth();
   const role = session?.user.role;
+  const canTeach = role === "TEACHER" || role === "ADMIN";
+  const roleLabel = role ? role.charAt(0) + role.slice(1).toLowerCase() : "";
+
+  const links = (
+    <>
+      <NavLink href="/courses">Courses</NavLink>
+      {session && <NavLink href="/dashboard">Dashboard</NavLink>}
+      {canTeach && <NavLink href="/courses/new">New course</NavLink>}
+      {role === "ADMIN" && <NavLink href="/admin">Admin</NavLink>}
+    </>
+  );
+
+  const account = session ? (
+    <>
+      <p className="text-sm">
+        <span className="font-bold">{session.user.name}</span>
+        <span className="ml-2 border border-rule px-1.5 py-0.5 text-xs text-muted">
+          {roleLabel}
+        </span>
+      </p>
+      <form action={logout}>
+        <button type="submit" className="btn btn-ghost btn-sm">
+          Log out
+        </button>
+      </form>
+    </>
+  ) : (
+    <>
+      <Link href="/login" className="btn btn-ghost btn-sm">
+        Log in
+      </Link>
+      <Link href="/signup" className="btn btn-primary btn-sm">
+        Sign up
+      </Link>
+    </>
+  );
 
   return (
-    <nav className="border-b bg-white">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="font-bold">
-          Debre Genet Sunday School
+    <header className="sticky top-0 z-30 border-b border-rule bg-white">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3">
+        <Link href="/" className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className="grid h-9 w-9 place-items-center rounded-sm bg-lapis font-geez text-xl text-white"
+          >
+            ደ
+          </span>
+          <span className="font-display text-lg font-semibold leading-tight">
+            Debre Genet
+            <span className="block font-sans text-xs font-normal text-muted">
+              Sunday School
+            </span>
+          </span>
         </Link>
 
-        <div className="flex items-center gap-4 text-sm">
-          <Link href="/courses" className="hover:underline">
-            Courses
-          </Link>
+        <nav aria-label="Main" className="hidden items-center gap-6 md:flex">
+          {links}
+        </nav>
 
-          {session ? (
-            <>
-              <Link href="/dashboard" className="hover:underline">
-                Dashboard
-              </Link>
+        <div className="hidden items-center gap-3 md:flex">{account}</div>
 
-              {(role === "TEACHER" || role === "ADMIN") && (
-                <Link href="/courses/new" className="hover:underline">
-                  Create Course
-                </Link>
-              )}
-
-              {role === "ADMIN" && (
-                <Link href="/admin" className="hover:underline">
-                  Admin
-                </Link>
-              )}
-
-              <span className="text-gray-500">
-                {session.user.name} ({role})
-              </span>
-
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/" });
-                }}
-              >
-                <button className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
-                  Log Out
-                </button>
-              </form>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="hover:underline">
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
-        </div>
+        <MobileMenu>
+          {links}
+          <hr className="border-rule" />
+          {account}
+        </MobileMenu>
       </div>
-    </nav>
+    </header>
   );
 }
