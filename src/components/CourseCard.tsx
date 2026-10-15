@@ -1,14 +1,5 @@
 import Link from "next/link";
-
-const SPINES = ["bg-lapis", "bg-fern", "bg-madder", "bg-saffron"];
-
-function spineFor(id: string) {
-  let sum = 0;
-  for (const char of id) {
-    sum += char.charCodeAt(0);
-  }
-  return SPINES[sum % SPINES.length];
-}
+import { spineFor } from "@/lib/spine";
 
 type CourseCardProps = {
   id: string;
