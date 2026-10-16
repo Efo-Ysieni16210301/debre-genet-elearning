@@ -186,6 +186,21 @@ export async function toggleLessonComplete(courseId: string, lessonId: string) {
       where: { id: existing.id },
     });
   } else {
+    if (lesson.videoUrl) {
+      const watch = await prisma.videoWatch.findUnique({
+        where: {
+          studentId_lessonId: {
+            studentId: session.user.id,
+            lessonId,
+          },
+        },
+      });
+
+      if (!watch?.finishedAt) {
+        throw new Error("Watch the whole video to complete this lesson.");
+      }
+    }
+
     await prisma.lessonProgress.create({
       data: {
         studentId: session.user.id,
@@ -195,4 +210,140 @@ export async function toggleLessonComplete(courseId: string, lessonId: string) {
   }
 
   revalidatePath(`/courses/${courseId}`);
+}
+type WatchResult = { ok: true } | { ok: false; message: string };
+
+export async function startWatching(
+  courseId: string,
+  lessonId: string,
+): Promise<WatchResult> {
+  const session = await auth();
+
+  if (!session) {
+    return { ok: false, message: "You must be logged in." };
+  }
+
+  const [enrollment, lesson] = await Promise.all([
+    prisma.enrollment.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId: session.user.id,
+          courseId,
+        },
+      },
+    }),
+    prisma.lesson.findUnique({ where: { id: lessonId } }),
+  ]);
+
+  if (!enrollment) {
+    return { ok: false, message: "You must be enrolled in this course." };
+  }
+
+  if (!lesson || lesson.courseId !== courseId || !lesson.videoUrl) {
+    return { ok: false, message: "This lesson has no video." };
+  }
+
+  await prisma.videoWatch.upsert({
+    where: {
+      studentId_lessonId: {
+        studentId: session.user.id,
+        lessonId,
+      },
+    },
+    create: { studentId: session.user.id, lessonId },
+    update: { startedAt: new Date() },
+  });
+
+  return { ok: true };
+}
+
+export async function finishWatching(
+  courseId: string,
+  lessonId: string,
+  durationSeconds: number,
+): Promise<WatchResult> {
+  const session = await auth();
+
+  if (!session) {
+    return { ok: false, message: "You must be logged in." };
+  }
+
+  const [enrollment, lesson] = await Promise.all([
+    prisma.enrollment.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId: session.user.id,
+          courseId,
+        },
+      },
+    }),
+    prisma.lesson.findUnique({ where: { id: lessonId } }),
+  ]);
+
+  if (!enrollment) {
+    return { ok: false, message: "You must be enrolled in this course." };
+  }
+
+  if (!lesson || lesson.courseId !== courseId || !lesson.videoUrl) {
+    return { ok: false, message: "This lesson has no video." };
+  }
+
+  if (
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < 1 ||
+    durationSeconds > 6 * 60 * 60
+  ) {
+    return {
+      ok: false,
+      message:
+        "Could not read the video length. Reload the page and try again.",
+    };
+  }
+
+  const watch = await prisma.videoWatch.findUnique({
+    where: {
+      studentId_lessonId: {
+        studentId: session.user.id,
+        lessonId,
+      },
+    },
+  });
+
+  if (!watch) {
+    return {
+      ok: false,
+      message: "Press play first, then watch the video to the end.",
+    };
+  }
+
+  const elapsedSeconds = (Date.now() - watch.startedAt.getTime()) / 1000;
+  const minimumSeconds = (durationSeconds * 0.9) / 2;
+
+  if (elapsedSeconds < minimumSeconds) {
+    return {
+      ok: false,
+      message:
+        "The video was finished too quickly to count. Watch it from the start without skipping.",
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.videoWatch.update({
+      where: { id: watch.id },
+      data: { finishedAt: new Date() },
+    }),
+    prisma.lessonProgress.upsert({
+      where: {
+        studentId_lessonId: {
+          studentId: session.user.id,
+          lessonId,
+        },
+      },
+      update: {},
+      create: { studentId: session.user.id, lessonId },
+    }),
+  ]);
+
+  revalidatePath(`/courses/${courseId}`);
+  return { ok: true };
 }

@@ -1,4 +1,4 @@
-export function getYouTubeEmbedUrl(url: string): string | null {
+export function getYouTubeVideoId(url: string): string | null {
   try {
     const parsed = new URL(url.trim());
     const host = parsed.hostname.replace(/^www\./, "");
@@ -18,11 +18,16 @@ export function getYouTubeEmbedUrl(url: string): string | null {
     }
 
     if (videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-      return `https://www.youtube.com/embed/${videoId}`;
+      return videoId;
     }
 
     return null;
   } catch {
     return null;
   }
+}
+
+export function getYouTubeEmbedUrl(url: string): string | null {
+  const videoId = getYouTubeVideoId(url);
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
 }

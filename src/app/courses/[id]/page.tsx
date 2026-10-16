@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { enrollInCourse, toggleLessonComplete } from "../actions";
 import { spineFor } from "@/lib/spine";
-import LessonVideo from "@/components/LessonVideo";
+import LessonPlayer from "@/components/LessonPlayer";
 import ProgressBar from "@/components/ProgressBar";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -73,6 +73,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
 
   let isEnrolled = false;
   let completedLessonIds = new Set<string>();
+  let watchedLessonIds = new Set<string>();
   const bestByQuiz = new Map<string, { score: number; total: number }>();
 
   if (session) {
@@ -87,10 +88,18 @@ export default async function CourseDetailPage({ params }: PageProps) {
     isEnrolled = !!enrollment;
 
     if (isEnrolled) {
-      const [progress, attempts] = await Promise.all([
+      const [progress, watches, attempts] = await Promise.all([
         prisma.lessonProgress.findMany({
           where: {
             studentId: session.user.id,
+            lesson: { courseId: course.id },
+          },
+          select: { lessonId: true },
+        }),
+        prisma.videoWatch.findMany({
+          where: {
+            studentId: session.user.id,
+            finishedAt: { not: null },
             lesson: { courseId: course.id },
           },
           select: { lessonId: true },
@@ -105,6 +114,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
       ]);
 
       completedLessonIds = new Set(progress.map((p) => p.lessonId));
+      watchedLessonIds = new Set(watches.map((w) => w.lessonId));
 
       for (const attempt of attempts) {
         if (attempt.total === 0) continue;
@@ -297,6 +307,13 @@ export default async function CourseDetailPage({ params }: PageProps) {
             <ol className="divide-y divide-rule border-y border-rule bg-white">
               {course.lessons.map((lesson, index) => {
                 const isDone = completedLessonIds.has(lesson.id);
+                const isWatched = watchedLessonIds.has(lesson.id);
+                const mustWatch =
+                  isEnrolled &&
+                  !isStaff &&
+                  !!lesson.videoUrl &&
+                  !isWatched &&
+                  !isDone;
 
                 return (
                   <li
@@ -329,9 +346,12 @@ export default async function CourseDetailPage({ params }: PageProps) {
                           )}
 
                           {lesson.videoUrl && (
-                            <LessonVideo
+                            <LessonPlayer
+                              courseId={course.id}
+                              lessonId={lesson.id}
                               url={lesson.videoUrl}
                               title={lesson.title}
+                              tracking={mustWatch}
                             />
                           )}
 
@@ -341,7 +361,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
                             </p>
                           )}
 
-                          {isEnrolled && (
+                          {isEnrolled && !mustWatch && (
                             <form
                               action={toggleLessonComplete.bind(
                                 null,
