@@ -23,7 +23,12 @@ export default async function Navbar() {
   const account = session ? (
     <>
       <p className="text-sm">
-        <span className="font-bold">{session.user.name}</span>
+        <Link
+          href="/account"
+          className="font-bold underline-offset-4 hover:underline"
+        >
+          {session.user.name}
+        </Link>
         <span className="ml-2 border border-rule px-1.5 py-0.5 text-xs text-muted">
           {roleLabel}
         </span>
@@ -46,7 +51,7 @@ export default async function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-rule bg-white">
+    <header className="sticky top-0 z-30 border-b border-rule bg-white print:hidden">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3">
         <Link href="/" className="flex items-center gap-3">
           <span

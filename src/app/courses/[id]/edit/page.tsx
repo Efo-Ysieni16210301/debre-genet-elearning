@@ -59,12 +59,20 @@ export default async function EditCoursePage({
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10">
-      <Link
-        href={`/courses/${course.id}`}
-        className="text-sm font-bold text-lapis underline underline-offset-4"
-      >
-        Open the course page
-      </Link>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <Link
+          href={`/courses/${course.id}`}
+          className="text-sm font-bold text-lapis underline underline-offset-4"
+        >
+          Open the course page
+        </Link>
+        <Link
+          href={`/courses/${course.id}/students`}
+          className="text-sm font-bold text-lapis underline underline-offset-4"
+        >
+          Students ({enrolledCount})
+        </Link>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <h1 className="max-w-3xl font-display text-3xl font-semibold leading-tight">

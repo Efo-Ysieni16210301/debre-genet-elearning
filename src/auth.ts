@@ -3,11 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/auth.config";
+import { LOCK_WINDOW_MS, MAX_FAILED_ATTEMPTS } from "@/lib/login-limits";
 
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCK_WINDOW_MS = 15 * 60 * 1000;
-
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -67,11 +65,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
+
+      if (trigger === "update" && typeof session?.user?.name === "string") {
+        token.name = session.user.name;
+      }
+
       return token;
     },
     async session({ session, token }) {

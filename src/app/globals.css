@@ -52,6 +52,8 @@ body {
     var(--fern) 36px 60px,
     var(--lapis-deep) 60px 72px
   );
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }
 
 @layer components {

@@ -224,6 +224,14 @@ export default async function CourseDetailPage({ params }: PageProps) {
                       ? "You finished every lesson."
                       : `${completedCount} of ${totalLessons} lessons complete`}
                 </p>
+                {totalLessons > 0 && completedCount === totalLessons && (
+                  <Link
+                    href={`/courses/${course.id}/certificate`}
+                    className="btn btn-accent btn-sm mt-4 w-full"
+                  >
+                    View your certificate
+                  </Link>
+                )}
               </div>
             )}
 

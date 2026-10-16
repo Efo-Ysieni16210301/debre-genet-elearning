@@ -1,5 +1,10 @@
-import { auth } from "@/auth";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import StudentDashboard from "@/components/StudentDashboard";
+import TeacherDashboard from "@/components/TeacherDashboard";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -8,27 +13,30 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  const isStudent = session.user.role === "STUDENT";
+  const firstName = (session.user.name ?? "").split(" ")[0] || "there";
+
   return (
-    <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-      <p>
-        Welcome, {session.user.name} — you are logged in as a{" "}
-        <strong>{session.user.role}</strong>.
+    <div className="mx-auto max-w-6xl px-5 py-10">
+      <h1 className="font-display text-3xl font-semibold">
+        Hello, {firstName}
+      </h1>
+      <p className="mt-1 text-muted">
+        {isStudent
+          ? "Here is where your learning stands."
+          : "Here are your courses and your students."}
       </p>
 
-      {session.user.role === "TEACHER" && (
-        <div className="mt-6 p-4 bg-blue-50 rounded">
-          <p>Teacher tools would go here (manage courses, students, etc.)</p>
-        </div>
-      )}
-
-      {session.user.role === "ADMIN" && (
-        <div className="mt-6 p-4 bg-purple-50 rounded">
-          <p>
-            Admin tools would go here (manage users, platform settings, etc.)
-          </p>
-        </div>
-      )}
+      <div className="mt-8">
+        {isStudent ? (
+          <StudentDashboard studentId={session.user.id} />
+        ) : (
+          <TeacherDashboard
+            teacherId={session.user.id}
+            isAdmin={session.user.role === "ADMIN"}
+          />
+        )}
+      </div>
     </div>
   );
 }

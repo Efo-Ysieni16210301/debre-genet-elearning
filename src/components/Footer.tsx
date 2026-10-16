@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="mt-16">
+    <footer className="mt-16 print:hidden">
       <div className="tilet" aria-hidden />
       <div className="bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-6 text-sm text-muted">
