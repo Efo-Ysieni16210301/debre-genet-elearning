@@ -1,4 +1,12 @@
 "use server";
+import {
+  END_MARGIN,
+  MAX_CREDIT_GAP,
+  MAX_DURATION,
+  MAX_RATE,
+  MIN_REPORT_GAP,
+  SLACK,
+} from "@/lib/watch-rules";
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -211,16 +219,15 @@ export async function toggleLessonComplete(courseId: string, lessonId: string) {
 
   revalidatePath(`/courses/${courseId}`);
 }
-type WatchResult = { ok: true } | { ok: false; message: string };
+type WatchResult =
+  | { ok: true; watchedSeconds: number }
+  | { ok: false; message: string };
 
-export async function startWatching(
-  courseId: string,
-  lessonId: string,
-): Promise<WatchResult> {
+async function checkVideoAccess(courseId: string, lessonId: string) {
   const session = await auth();
 
   if (!session) {
-    return { ok: false, message: "You must be logged in." };
+    return { ok: false as const, message: "You must be logged in." };
   }
 
   const [enrollment, lesson] = await Promise.all([
@@ -236,63 +243,134 @@ export async function startWatching(
   ]);
 
   if (!enrollment) {
-    return { ok: false, message: "You must be enrolled in this course." };
+    return {
+      ok: false as const,
+      message: "You must be enrolled in this course.",
+    };
   }
 
   if (!lesson || lesson.courseId !== courseId || !lesson.videoUrl) {
-    return { ok: false, message: "This lesson has no video." };
+    return { ok: false as const, message: "This lesson has no video." };
   }
 
-  await prisma.videoWatch.upsert({
+  return { ok: true as const, studentId: session.user.id };
+}
+
+function validTimes(position: number, duration: number) {
+  return (
+    Number.isFinite(position) &&
+    Number.isFinite(duration) &&
+    position >= 0 &&
+    duration >= 1 &&
+    duration <= MAX_DURATION
+  );
+}
+
+function creditProgress(
+  previous: { watchedSeconds: number; baseline: Date } | null,
+  position: number,
+  duration: number,
+  now: Date,
+) {
+  const frontier = previous?.watchedSeconds ?? 0;
+  const elapsed = previous
+    ? (now.getTime() - previous.baseline.getTime()) / 1000
+    : 0;
+  const allowed =
+    frontier +
+    Math.min(Math.max(elapsed, 0), MAX_CREDIT_GAP) * MAX_RATE +
+    SLACK;
+
+  return Math.max(frontier, Math.min(position, allowed, duration));
+}
+
+export async function reportProgress(
+  courseId: string,
+  lessonId: string,
+  position: number,
+  duration: number,
+): Promise<WatchResult> {
+  const access = await checkVideoAccess(courseId, lessonId);
+
+  if (!access.ok) {
+    return access;
+  }
+
+  if (!validTimes(position, duration)) {
+    return { ok: false, message: "Could not read the video position." };
+  }
+
+  const now = new Date();
+
+  const watch = await prisma.videoWatch.findUnique({
     where: {
-      studentId_lessonId: {
-        studentId: session.user.id,
-        lessonId,
-      },
+      studentId_lessonId: { studentId: access.studentId, lessonId },
     },
-    create: { studentId: session.user.id, lessonId },
-    update: { startedAt: new Date() },
   });
 
-  return { ok: true };
+  if (!watch) {
+    const frontier = creditProgress(null, position, duration, now);
+
+    await prisma.videoWatch.upsert({
+      where: {
+        studentId_lessonId: { studentId: access.studentId, lessonId },
+      },
+      create: {
+        studentId: access.studentId,
+        lessonId,
+        watchedSeconds: frontier,
+        durationSeconds: duration,
+        lastReportAt: now,
+      },
+      update: {},
+    });
+
+    return { ok: true, watchedSeconds: frontier };
+  }
+
+  if (watch.finishedAt) {
+    return { ok: true, watchedSeconds: watch.watchedSeconds };
+  }
+
+  const baseline = watch.lastReportAt ?? watch.startedAt;
+  const sinceLast = (now.getTime() - baseline.getTime()) / 1000;
+
+  if (sinceLast < MIN_REPORT_GAP) {
+    return { ok: true, watchedSeconds: watch.watchedSeconds };
+  }
+
+  const knownDuration = watch.durationSeconds ?? duration;
+  const frontier = creditProgress(
+    { watchedSeconds: watch.watchedSeconds, baseline },
+    position,
+    knownDuration,
+    now,
+  );
+
+  await prisma.videoWatch.update({
+    where: { id: watch.id },
+    data: {
+      watchedSeconds: frontier,
+      durationSeconds: knownDuration,
+      lastReportAt: now,
+    },
+  });
+
+  return { ok: true, watchedSeconds: frontier };
 }
 
 export async function finishWatching(
   courseId: string,
   lessonId: string,
-  durationSeconds: number,
+  duration: number,
 ): Promise<WatchResult> {
-  const session = await auth();
+  const access = await checkVideoAccess(courseId, lessonId);
 
-  if (!session) {
-    return { ok: false, message: "You must be logged in." };
+  if (!access.ok) {
+    return access;
   }
 
-  const [enrollment, lesson] = await Promise.all([
-    prisma.enrollment.findUnique({
-      where: {
-        studentId_courseId: {
-          studentId: session.user.id,
-          courseId,
-        },
-      },
-    }),
-    prisma.lesson.findUnique({ where: { id: lessonId } }),
-  ]);
-
-  if (!enrollment) {
-    return { ok: false, message: "You must be enrolled in this course." };
-  }
-
-  if (!lesson || lesson.courseId !== courseId || !lesson.videoUrl) {
-    return { ok: false, message: "This lesson has no video." };
-  }
-
-  if (
-    !Number.isFinite(durationSeconds) ||
-    durationSeconds < 1 ||
-    durationSeconds > 6 * 60 * 60
-  ) {
+  if (!validTimes(0, duration)) {
     return {
       ok: false,
       message:
@@ -302,48 +380,56 @@ export async function finishWatching(
 
   const watch = await prisma.videoWatch.findUnique({
     where: {
-      studentId_lessonId: {
-        studentId: session.user.id,
-        lessonId,
-      },
+      studentId_lessonId: { studentId: access.studentId, lessonId },
     },
   });
 
   if (!watch) {
     return {
       ok: false,
-      message: "Press play first, then watch the video to the end.",
+      message: "Press play and watch the video to the end.",
     };
   }
 
-  const elapsedSeconds = (Date.now() - watch.startedAt.getTime()) / 1000;
-  const minimumSeconds = (durationSeconds * 0.9) / 2;
+  const now = new Date();
+  const knownDuration = watch.durationSeconds ?? duration;
+  const frontier = creditProgress(
+    {
+      watchedSeconds: watch.watchedSeconds,
+      baseline: watch.lastReportAt ?? watch.startedAt,
+    },
+    knownDuration,
+    knownDuration,
+    now,
+  );
 
-  if (elapsedSeconds < minimumSeconds) {
+  if (frontier < knownDuration - END_MARGIN) {
     return {
       ok: false,
       message:
-        "The video was finished too quickly to count. Watch it from the start without skipping.",
+        "Some of your viewing could not be saved, for example if your connection dropped. Reload the page, choose Resume, and watch to the end.",
     };
   }
 
   await prisma.$transaction([
     prisma.videoWatch.update({
       where: { id: watch.id },
-      data: { finishedAt: new Date() },
+      data: {
+        watchedSeconds: frontier,
+        durationSeconds: knownDuration,
+        lastReportAt: now,
+        finishedAt: now,
+      },
     }),
     prisma.lessonProgress.upsert({
       where: {
-        studentId_lessonId: {
-          studentId: session.user.id,
-          lessonId,
-        },
+        studentId_lessonId: { studentId: access.studentId, lessonId },
       },
       update: {},
-      create: { studentId: session.user.id, lessonId },
+      create: { studentId: access.studentId, lessonId },
     }),
   ]);
 
   revalidatePath(`/courses/${courseId}`);
-  return { ok: true };
+  return { ok: true, watchedSeconds: frontier };
 }

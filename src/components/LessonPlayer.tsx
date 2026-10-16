@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { startWatching, finishWatching } from "@/app/courses/actions";
+import { reportProgress, finishWatching } from "@/app/courses/actions";
 import { getYouTubeVideoId } from "@/lib/video";
+import { END_MARGIN, HEARTBEAT_SECONDS, MAX_RATE } from "@/lib/watch-rules";
 import LessonVideo from "./LessonVideo";
 import ProgressBar from "./ProgressBar";
 
 const SKIP_TOLERANCE = 2.5;
-const END_MARGIN = 2;
-const MAX_RATE = 2;
 
 type YTPlayer = {
   getCurrentTime: () => number;
@@ -30,7 +29,7 @@ type YTNamespace = {
       events?: { onStateChange?: (event: { data: number }) => void };
     },
   ) => YTPlayer;
-  PlayerState: { ENDED: number; PLAYING: number };
+  PlayerState: { ENDED: number; PLAYING: number; PAUSED: number };
 };
 
 declare global {
@@ -65,34 +64,107 @@ function loadYouTubeApi(): Promise<YTNamespace> {
   return youTubeApi;
 }
 
+function formatTime(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = seconds % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return hours > 0
+    ? `${hours}:${pad(minutes)}:${pad(rest)}`
+    : `${minutes}:${pad(rest)}`;
+}
+
+type Reader = () => { current: number; duration: number } | null;
+
 function useWatchTracker({
   courseId,
   lessonId,
   tracking,
+  savedSeconds,
+  savedDuration,
 }: {
   courseId: string;
   lessonId: string;
   tracking: boolean;
+  savedSeconds: number;
+  savedDuration: number | null;
 }) {
-  const maxRef = useRef(0);
+  const frontierRef = useRef(savedSeconds);
   const lastTickRef = useRef<number | null>(null);
-  const startedRef = useRef(false);
   const finishedRef = useRef(false);
-  const [percent, setPercent] = useState(0);
+  const readerRef = useRef<Reader | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [percent, setPercent] = useState(
+    savedDuration && savedDuration > 0
+      ? Math.min(100, Math.floor((savedSeconds / savedDuration) * 100))
+      : 0,
+  );
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function onPlay() {
-    lastTickRef.current = null;
+  async function save() {
+    if (!tracking || finishedRef.current) return;
 
-    if (!tracking || startedRef.current) return;
-    startedRef.current = true;
+    const read = readerRef.current?.();
+    if (!read || !Number.isFinite(read.duration) || read.duration <= 0) return;
 
-    const result = await startWatching(courseId, lessonId);
+    const result = await reportProgress(
+      courseId,
+      lessonId,
+      read.current,
+      read.duration,
+    );
 
     if (!result.ok) {
-      startedRef.current = false;
       setNotice(result.message);
     }
+  }
+
+  const saveRef = useRef(save);
+
+  useEffect(() => {
+    saveRef.current = save;
+  });
+
+  useEffect(() => {
+    if (!playing || !tracking) return;
+
+    const id = window.setInterval(() => {
+      void saveRef.current();
+    }, HEARTBEAT_SECONDS * 1000);
+
+    return () => window.clearInterval(id);
+  }, [playing, tracking]);
+
+  useEffect(() => {
+    if (!tracking) return;
+
+    function handleVisibility() {
+      if (document.visibilityState === "hidden") {
+        void saveRef.current();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, [tracking]);
+
+  function setReader(reader: Reader | null) {
+    readerRef.current = reader;
+  }
+
+  function onPlay() {
+    lastTickRef.current = null;
+    setNotice(null);
+    setPlaying(true);
+    void save();
+  }
+
+  function onPause() {
+    setPlaying(false);
+    void save();
   }
 
   function onTick(current: number, duration: number): number | null {
@@ -103,22 +175,20 @@ function useWatchTracker({
       lastTickRef.current === null ? 0 : (now - lastTickRef.current) / 1000;
     lastTickRef.current = now;
 
-    const allowed = maxRef.current + elapsed * MAX_RATE + SKIP_TOLERANCE;
+    const allowed = frontierRef.current + elapsed * MAX_RATE + SKIP_TOLERANCE;
 
     if (current > allowed) {
       setNotice(
-        "Skipping ahead is turned off. You can go back, but you need to watch the video to the end.",
+        "Skipping ahead is turned off. You can go back and rewatch, but you need to watch the video to the end.",
       );
-      return maxRef.current;
+      return frontierRef.current;
     }
 
-    if (current > maxRef.current) {
-      maxRef.current = current;
+    if (current > frontierRef.current) {
+      frontierRef.current = current;
 
       if (Number.isFinite(duration) && duration > 0) {
-        setPercent(
-          Math.min(100, Math.floor((maxRef.current / duration) * 100)),
-        );
+        setPercent(Math.min(100, Math.floor((current / duration) * 100)));
       }
     }
 
@@ -126,15 +196,17 @@ function useWatchTracker({
   }
 
   async function onEnded(duration: number) {
+    setPlaying(false);
+
     if (!tracking || finishedRef.current) return;
 
     if (
       !Number.isFinite(duration) ||
       duration <= 0 ||
-      maxRef.current < duration - END_MARGIN
+      frontierRef.current < duration - END_MARGIN
     ) {
       setNotice(
-        "The video ended before you watched all of it. Watch from the beginning to complete the lesson.",
+        "The video ended before you watched all of it. Play it again to the end to complete the lesson.",
       );
       return;
     }
@@ -153,7 +225,7 @@ function useWatchTracker({
     }
   }
 
-  return { percent, notice, onPlay, onTick, onEnded };
+  return { percent, notice, setReader, onPlay, onPause, onTick, onEnded };
 }
 
 type LessonPlayerProps = {
@@ -162,7 +234,11 @@ type LessonPlayerProps = {
   url: string;
   title: string;
   tracking: boolean;
+  savedSeconds: number;
+  savedDuration: number | null;
 };
+
+type StartPoint = { at: number; auto: boolean };
 
 export default function LessonPlayer({
   courseId,
@@ -170,6 +246,8 @@ export default function LessonPlayer({
   url,
   title,
   tracking,
+  savedSeconds,
+  savedDuration,
 }: LessonPlayerProps) {
   const [tracked, setTracked] = useState(tracking);
 
@@ -177,9 +255,25 @@ export default function LessonPlayer({
     setTracked(true);
   }
 
+  const hasResumePoint =
+    tracking &&
+    savedSeconds >= 5 &&
+    (savedDuration === null || savedSeconds < savedDuration - END_MARGIN);
+
+  const [start, setStart] = useState<StartPoint | null>(
+    hasResumePoint ? null : { at: 0, auto: false },
+  );
+
   const videoId = getYouTubeVideoId(url);
   const containerRef = useRef<HTMLDivElement>(null);
-  const tracker = useWatchTracker({ courseId, lessonId, tracking });
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const tracker = useWatchTracker({
+    courseId,
+    lessonId,
+    tracking,
+    savedSeconds,
+    savedDuration,
+  });
   const trackerRef = useRef(tracker);
 
   useEffect(() => {
@@ -187,10 +281,10 @@ export default function LessonPlayer({
   });
 
   useEffect(() => {
-    if (!tracked || !videoId || !containerRef.current) return;
+    if (!tracked || !videoId || !start || !containerRef.current) return;
 
     let cancelled = false;
-    let interval: number | undefined;
+    let poll: number | undefined;
     let player: YTPlayer | undefined;
 
     const target = document.createElement("div");
@@ -203,15 +297,20 @@ export default function LessonPlayer({
         videoId,
         width: "100%",
         height: "100%",
-        playerVars: { rel: 0, playsinline: 1 },
+        playerVars: {
+          rel: 0,
+          playsinline: 1,
+          start: Math.floor(start.at),
+          autoplay: start.auto ? 1 : 0,
+        },
         events: {
           onStateChange: (event) => {
-            window.clearInterval(interval);
+            window.clearInterval(poll);
 
             if (event.data === yt.PlayerState.PLAYING) {
               trackerRef.current.onPlay();
 
-              interval = window.setInterval(() => {
+              poll = window.setInterval(() => {
                 if (!player) return;
 
                 const back = trackerRef.current.onTick(
@@ -227,24 +326,78 @@ export default function LessonPlayer({
                   player.setPlaybackRate(MAX_RATE);
                 }
               }, 500);
+            } else if (event.data === yt.PlayerState.PAUSED) {
+              trackerRef.current.onPause();
             } else if (event.data === yt.PlayerState.ENDED && player) {
               trackerRef.current.onEnded(player.getDuration());
             }
           },
         },
       });
+
+      trackerRef.current.setReader(() =>
+        player
+          ? { current: player.getCurrentTime(), duration: player.getDuration() }
+          : null,
+      );
     });
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      window.clearInterval(poll);
+      trackerRef.current.setReader(null);
       player?.destroy();
       target.remove();
     };
-  }, [tracked, videoId]);
+  }, [tracked, videoId, start]);
+
+  useEffect(() => {
+    if (!tracked || videoId || !start) return;
+
+    trackerRef.current.setReader(() => {
+      const video = videoRef.current;
+      return video
+        ? { current: video.currentTime, duration: video.duration }
+        : null;
+    });
+
+    return () => trackerRef.current.setReader(null);
+  }, [tracked, videoId, start]);
 
   if (!tracked) {
     return <LessonVideo url={url} title={title} />;
+  }
+
+  if (start === null) {
+    return (
+      <div className="mt-5 border border-rule bg-paper p-5">
+        <p className="font-bold">
+          {savedDuration
+            ? `You watched ${formatTime(savedSeconds)} of ${formatTime(savedDuration)} last time.`
+            : `You watched up to ${formatTime(savedSeconds)} last time.`}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setStart({ at: savedSeconds, auto: true })}
+          >
+            Resume from {formatTime(savedSeconds)}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setStart({ at: 0, auto: true })}
+          >
+            Start from the beginning
+          </button>
+        </div>
+        <p className="mt-3 text-sm text-muted">
+          Your place is saved automatically. If you start from the beginning,
+          you keep everything you have already watched.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -257,11 +410,19 @@ export default function LessonPlayer({
           />
         ) : (
           <video
+            ref={videoRef}
             src={url}
             controls
             preload="metadata"
+            autoPlay={start.auto}
             className="h-full w-full object-contain"
+            onLoadedMetadata={(e) => {
+              if (start.at > 0) {
+                e.currentTarget.currentTime = start.at;
+              }
+            }}
             onPlay={tracker.onPlay}
+            onPause={tracker.onPause}
             onTimeUpdate={(e) => {
               const video = e.currentTarget;
               const back = tracker.onTick(video.currentTime, video.duration);
@@ -290,8 +451,9 @@ export default function LessonPlayer({
             label={`Watched so far: ${title}`}
           />
           <p className="mt-2 text-sm text-muted">
-            Watched {tracker.percent}%. Skipping ahead is turned off. Watch to
-            the end to complete this lesson.
+            Watched {tracker.percent}%. Your place is saved automatically.
+            Skipping ahead is turned off. Watch to the end to complete this
+            lesson.
           </p>
         </div>
       )}

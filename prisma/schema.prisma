@@ -139,15 +139,18 @@ model QuizAttempt {
   @@index([studentId, quizId])
 }
 model VideoWatch {
-  id         String    @id @default(cuid())
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
+  id              String    @id @default(cuid())
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  watchedSeconds  Float     @default(0)
+  durationSeconds Float?
+  lastReportAt    DateTime?
 
-  studentId  String
-  student    User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  lessonId   String
-  lesson     Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lessonId        String
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, lessonId])
 }
