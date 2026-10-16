@@ -30,7 +30,7 @@ export default function CloudinaryUploadButton({
 
   const openWidget = () => {
     if (!window.cloudinary) {
-      alert("Upload widget is still loading, please try again in a moment.");
+      alert("The upload tool is still loading. Please try again in a moment.");
       return;
     }
 
@@ -58,13 +58,13 @@ export default function CloudinaryUploadButton({
       <button
         type="button"
         onClick={openWidget}
-        className="bg-gray-700 text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-800"
+        className="btn btn-ghost btn-sm"
       >
-        Upload Video
+        Upload a video file
       </button>
       {uploaded && (
-        <p className="text-sm text-green-700 mt-2">
-          ✅ Video uploaded successfully
+        <p role="status" className="mt-2 text-sm font-bold text-fern">
+          Video uploaded. The link is filled in below.
         </p>
       )}
     </div>

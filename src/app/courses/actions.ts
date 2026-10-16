@@ -23,11 +23,19 @@ export async function createCourse(formData: FormData) {
     throw new Error("Not authorized to create courses.");
   }
 
-  const title = formData.get("title") as string;
-  const description = formData.get("description") as string;
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
 
   if (!title || !description) {
     throw new Error("Title and description are required.");
+  }
+
+  if (title.length > 120) {
+    throw new Error("The title is too long (120 characters at most).");
+  }
+
+  if (description.length > 2000) {
+    throw new Error("The description is too long (2000 characters at most).");
   }
 
   const course = await prisma.course.create({
@@ -41,48 +49,7 @@ export async function createCourse(formData: FormData) {
   redirect(`/courses/${course.id}/edit`);
 }
 
-export async function addLesson(courseId: string, formData: FormData) {
-  const session = await auth();
 
-  const course = await prisma.course.findUnique({
-    where: { id: courseId },
-  });
-
-  if (!course) {
-    throw new Error("Course not found.");
-  }
-
-  const isOwner = session?.user.id === course.teacherId;
-  const isAdmin = session?.user.role === "ADMIN";
-
-  if (!session || (!isOwner && !isAdmin)) {
-    throw new Error("Not authorized to edit this course.");
-  }
-
-  const title = formData.get("title") as string;
-  const textContent = formData.get("textContent") as string;
-  const videoUrl = formData.get("videoUrl") as string;
-
-  if (!title) {
-    throw new Error("Lesson title is required.");
-  }
-
-  const lessonCount = await prisma.lesson.count({
-    where: { courseId },
-  });
-
-  await prisma.lesson.create({
-    data: {
-      title,
-      textContent: textContent || null,
-      videoUrl: videoUrl || null,
-      order: lessonCount + 1,
-      courseId,
-    },
-  });
-
-  revalidatePath(`/courses/${courseId}/edit`);
-}
 
 export async function publishCourse(courseId: string) {
   const session = await auth();
@@ -102,12 +69,19 @@ export async function publishCourse(courseId: string) {
     throw new Error("Not authorized to publish this course.");
   }
 
+  const lessonCount = await prisma.lesson.count({ where: { courseId } });
+
+  if (lessonCount === 0) {
+    throw new Error("Add at least one lesson before publishing.");
+  }
+
   await prisma.course.update({
     where: { id: courseId },
     data: { published: true },
   });
 
   revalidatePath(`/courses/${courseId}/edit`);
+  revalidatePath(`/courses/${courseId}`);
   revalidatePath("/courses");
 }
 
