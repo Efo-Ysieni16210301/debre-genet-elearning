@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/dates";
 import { resetUserPassword, updateUserRole } from "./actions";
 import ResetPasswordButton from "@/components/ResetPasswordButton";
 import SubmitButton from "@/components/SubmitButton";
+import AdminNav from "@/components/AdminNav";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -78,21 +79,7 @@ export default async function AdminPage({
     <div className="mx-auto max-w-6xl px-5 py-10">
       <h1 className="font-display text-3xl font-semibold">Administration</h1>
 
-      <nav aria-label="Admin sections" className="mt-4 flex gap-6 text-sm">
-        <Link
-          href="/admin"
-          aria-current="page"
-          className="border-b-2 border-saffron py-1 font-bold"
-        >
-          Users
-        </Link>
-        <Link
-          href="/admin/courses"
-          className="border-b-2 border-transparent py-1 font-bold text-muted hover:text-ink"
-        >
-          Courses
-        </Link>
-      </nav>
+      <AdminNav current="users" />
 
       <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-4 border-y border-rule bg-white px-5 py-5 sm:grid-cols-5">
         {[

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { formatDate } from "@/lib/dates";
+import AdminNav from "@/components/AdminNav";
 
 export const metadata: Metadata = { title: "Admin: courses" };
 
@@ -30,21 +31,7 @@ export default async function AdminCoursesPage() {
     <div className="mx-auto max-w-6xl px-5 py-10">
       <h1 className="font-display text-3xl font-semibold">Administration</h1>
 
-      <nav aria-label="Admin sections" className="mt-4 flex gap-6 text-sm">
-        <Link
-          href="/admin"
-          className="border-b-2 border-transparent py-1 font-bold text-muted hover:text-ink"
-        >
-          Users
-        </Link>
-        <Link
-          href="/admin/courses"
-          aria-current="page"
-          className="border-b-2 border-saffron py-1 font-bold"
-        >
-          Courses
-        </Link>
-      </nav>
+      <AdminNav current="courses" />
 
       <p className="mt-6 text-sm text-muted">
         {courses.length} {courses.length === 1 ? "course" : "courses"} on the

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="mt-16 print:hidden">
@@ -8,6 +10,12 @@ export default function Footer() {
             ደብረ ገነት ሰንበት ትምህርት ቤት
           </p>
           <p>Lessons and quizzes for our students and teachers.</p>
+          <Link
+            href="/verify"
+            className="font-bold text-lapis underline underline-offset-4"
+          >
+            Verify a certificate
+          </Link>
         </div>
       </div>
     </footer>

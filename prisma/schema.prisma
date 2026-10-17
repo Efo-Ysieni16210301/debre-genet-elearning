@@ -32,6 +32,7 @@ model User{
     progress    LessonProgress[]
       quizAttempts QuizAttempt[]
         videoWatches VideoWatch[]
+          certificates Certificate[]
 }
 model Course {
   id          String   @id @default(cuid())
@@ -46,6 +47,7 @@ model Course {
   lessons     Lesson[]
   enrollments Enrollment[]
     quizzes     Quiz[]
+      certificates Certificate[]
 }
 model Lesson {
   id          String   @id @default(cuid())
@@ -153,4 +155,23 @@ model VideoWatch {
   lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, lessonId])
+}
+model Certificate {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  studentName String
+  courseTitle String
+  teacherName String
+  completedAt DateTime
+  issuedAt    DateTime  @default(now())
+  revokedAt   DateTime?
+
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id])
+
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+  @@index([issuedAt])
 }
