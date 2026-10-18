@@ -11,6 +11,7 @@ export const metadata: Metadata = { title: "Students" };
 type Stats = {
   lessonsDone: number;
   best: Map<string, number>;
+  waiting: number;
   lastActive: Date | null;
 };
 
@@ -63,6 +64,7 @@ export default async function StudentsPage({
         quizId: true,
         score: true,
         total: true,
+        status: true,
         completedAt: true,
       },
     }),
@@ -78,7 +80,7 @@ export default async function StudentsPage({
     let entry = stats.get(studentId);
 
     if (!entry) {
-      entry = { lessonsDone: 0, best: new Map(), lastActive: null };
+      entry = { lessonsDone: 0, best: new Map(), waiting: 0, lastActive: null };
       stats.set(studentId, entry);
     }
 
@@ -100,7 +102,9 @@ export default async function StudentsPage({
   for (const attempt of attempts) {
     const entry = statsFor(attempt.studentId);
 
-    if (attempt.total > 0) {
+    if (attempt.status === "PENDING") {
+      entry.waiting++;
+    } else if (attempt.total > 0) {
       const ratio = attempt.score / attempt.total;
       const previous = entry.best.get(attempt.quizId);
 
@@ -223,6 +227,11 @@ export default async function StudentsPage({
                           {average !== null && (
                             <p className="text-muted">
                               Average best score {average}%
+                            </p>
+                          )}
+                          {entry && entry.waiting > 0 && (
+                            <p className="text-muted">
+                              {entry.waiting} waiting for review
                             </p>
                           )}
                         </>

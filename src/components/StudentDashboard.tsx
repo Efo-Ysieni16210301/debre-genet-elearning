@@ -178,6 +178,9 @@ export default async function StudentDashboard({
                   <p className="font-bold">
                     {attempt.score} of {attempt.total}
                   </p>
+                  {attempt.status === "PENDING" && (
+                    <p className="text-sm text-muted">Waiting for review</p>
+                  )}
                   <p className="text-sm text-muted">
                     {formatDate(attempt.completedAt)}
                   </p>

@@ -19,6 +19,18 @@ enum Role {
   TEACHER
   ADMIN
 }
+enum QuestionType {
+  SINGLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  MATCHING
+  EXPLANATION
+}
+
+enum AttemptStatus {
+  GRADED
+  PENDING
+}
 model User{
    id        String   @id @default(cuid())
   name      String
@@ -97,6 +109,7 @@ model LoginAttempt {
 model Quiz {
   id        String   @id @default(cuid())
   title     String
+    showAnswers Boolean  @default(false)
   createdAt DateTime @default(now())
 
   courseId  String
@@ -107,14 +120,29 @@ model Quiz {
 }
 
 model Question {
-  id    String @id @default(cuid())
-  text  String
-  order Int
+  id              String       @id @default(cuid())
+  text            String
+  order           Int
+  type            QuestionType @default(SINGLE_CHOICE)
+  points          Int          @default(1)
+  acceptedAnswers String[]     @default([])
+  modelAnswer     String?
 
   quizId  String
   quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
   options Option[]
+  pairs   MatchPair[]
+  answers AttemptAnswer[]
+}
+model MatchPair {
+  id    String @id @default(cuid())
+  left  String
+  right String
+  order Int
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
 model Option {
@@ -127,10 +155,12 @@ model Option {
 }
 
 model QuizAttempt {
-  id          String   @id @default(cuid())
-  score       Int
-  total       Int
-  completedAt DateTime @default(now())
+  id          String        @id @default(cuid())
+  score       Float
+  total       Float
+  status      AttemptStatus @default(GRADED)
+  completedAt DateTime      @default(now())
+  gradedAt    DateTime?
 
   studentId String
   student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -138,7 +168,24 @@ model QuizAttempt {
   quizId    String
   quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
+  answers   AttemptAnswer[]
+
   @@index([studentId, quizId])
+}
+model AttemptAnswer {
+  id        String   @id @default(cuid())
+  response  String   @default("")
+  isCorrect Boolean?
+  points    Float    @default(0)
+  feedback  String?
+
+  attemptId  String
+  attempt    QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
 }
 model VideoWatch {
   id              String    @id @default(cuid())

@@ -16,8 +16,52 @@ export default async function TeacherDashboard({
     },
   });
 
+  const needsReview = await prisma.quiz.findMany({
+    where: { course: { teacherId }, attempts: { some: { status: "PENDING" } } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      courseId: true,
+      course: { select: { title: true } },
+      _count: { select: { attempts: { where: { status: "PENDING" } } } },
+    },
+  });
+
   return (
     <div className="space-y-10">
+      {needsReview.length > 0 && (
+        <section aria-labelledby="needs-review">
+          <h2 id="needs-review" className="font-display text-2xl font-semibold">
+            Needs your review
+          </h2>
+          <ul className="mt-4 divide-y divide-rule border-y border-rule bg-white">
+            {needsReview.map((quiz) => (
+              <li
+                key={quiz.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"
+              >
+                <div>
+                  <p className="font-bold">{quiz.title}</p>
+                  <p className="text-sm text-muted">
+                    {quiz.course.title}, {quiz._count.attempts}{" "}
+                    {quiz._count.attempts === 1 ? "attempt is" : "attempts are"}{" "}
+                    waiting for a mark
+                  </p>
+                </div>
+                <Link
+                  href={`/courses/${quiz.courseId}/quizzes/${quiz.id}/grading`}
+                  className="btn btn-primary btn-sm"
+                >
+                  Mark written answers
+                  <span className="sr-only"> for {quiz.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {isAdmin && (
         <section className="flex flex-wrap items-center justify-between gap-3 border border-rule bg-white p-5">
           <div>

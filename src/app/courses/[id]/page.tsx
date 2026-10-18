@@ -81,6 +81,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
   let completedLessonIds = new Set<string>();
   const watchByLesson = new Map<string, WatchInfo>();
   const bestByQuiz = new Map<string, { score: number; total: number }>();
+  const waitingQuizIds = new Set<string>();
 
   if (session) {
     const enrollment = await prisma.enrollment.findUnique({
@@ -119,7 +120,7 @@ export default async function CourseDetailPage({ params }: PageProps) {
             studentId: session.user.id,
             quiz: { courseId: course.id },
           },
-          select: { quizId: true, score: true, total: true },
+          select: { quizId: true, score: true, total: true, status: true },
         }),
       ]);
 
@@ -134,6 +135,11 @@ export default async function CourseDetailPage({ params }: PageProps) {
       }
 
       for (const attempt of attempts) {
+        if (attempt.status === "PENDING") {
+          waitingQuizIds.add(attempt.quizId);
+          continue;
+        }
+
         if (attempt.total === 0) continue;
         const current = bestByQuiz.get(attempt.quizId);
         if (
@@ -259,7 +265,9 @@ export default async function CourseDetailPage({ params }: PageProps) {
                           <span className="block text-sm text-muted">
                             {best
                               ? `Best score: ${best.score} of ${best.total}`
-                              : "Not taken yet"}
+                              : waitingQuizIds.has(quiz.id)
+                                ? "Waiting for your teacher's review"
+                                : "Not taken yet"}
                           </span>
                         </Link>
                       </li>
