@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useT } from "@/i18n/client";
 
 export default function PasswordField({
   label,
@@ -16,6 +17,7 @@ export default function PasswordField({
   minLength?: number;
 }) {
   const id = useId();
+  const { t } = useT();
   const [visible, setVisible] = useState(false);
 
   return (
@@ -37,10 +39,10 @@ export default function PasswordField({
         <button
           type="button"
           onClick={() => setVisible((value) => !value)}
-          aria-label={visible ? "Hide password" : "Show password"}
+          aria-label={visible ? t("auth.hideLabel") : t("auth.showLabel")}
           className="absolute inset-y-0 right-0 px-3 text-sm font-bold text-lapis"
         >
-          {visible ? "Hide" : "Show"}
+          {visible ? t("auth.hide") : t("auth.show")}
         </button>
       </div>
       {hint && (

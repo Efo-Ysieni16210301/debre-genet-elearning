@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { getI18n } from "@/i18n/server";
 
-export default function Footer() {
+export default async function Footer() {
+  const { t } = await getI18n();
+
   return (
     <footer className="mt-16 print:hidden">
       <div className="tilet" aria-hidden />
@@ -9,12 +12,12 @@ export default function Footer() {
           <p lang="am" className="font-geez text-base text-ink">
             ደብረ ገነት ሰንበት ትምህርት ቤት
           </p>
-          <p>Lessons and quizzes for our students and teachers.</p>
+          <p>{t("footer.tagline")}</p>
           <Link
             href="/verify"
             className="font-bold text-lapis underline underline-offset-4"
           >
-            Verify a certificate
+            {t("footer.verify")}
           </Link>
         </div>
       </div>

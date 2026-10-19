@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { getI18n } from "@/i18n/server";
 import CourseCard from "@/components/CourseCard";
 
 async function getContinueLearning(studentId: string) {
@@ -36,7 +37,7 @@ async function getContinueLearning(studentId: string) {
 }
 
 export default async function Home() {
-  const session = await auth();
+  const [session, { t }] = await Promise.all([auth(), getI18n()]);
   const role = session?.user.role;
   const userId = session?.user.id;
   const canTeach = role === "TEACHER" || role === "ADMIN";
@@ -74,24 +75,23 @@ export default async function Home() {
             ደብረ ገነት
           </p>
           <h1 className="mt-3 font-display text-3xl font-semibold md:text-5xl">
-            Debre Genet Sunday School
+            {t("common.schoolTitle")}
           </h1>
           <p className="mt-5 max-w-xl text-lg text-white/85">
-            Study the lessons your teachers prepare, watch them again at home,
-            and check what you remember with short quizzes.
+            {t("home.text")}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/courses" className="btn btn-accent">
-              Browse courses
+              {t("home.browse")}
             </Link>
             {!session && (
               <Link href="/signup" className="btn btn-outline-light">
-                Create an account
+                {t("home.createAccount")}
               </Link>
             )}
             {canTeach && (
               <Link href="/courses/new" className="btn btn-outline-light">
-                Create a course
+                {t("home.createCourse")}
               </Link>
             )}
           </div>
@@ -102,7 +102,7 @@ export default async function Home() {
       {continueLearning.length > 0 && (
         <section className="mx-auto max-w-6xl px-5 pt-12">
           <h2 className="font-display text-2xl font-semibold">
-            Continue learning
+            {t("home.continueTitle")}
           </h2>
           <ul className="mt-4 divide-y divide-rule border-y border-rule bg-white">
             {continueLearning.map((item) => {
@@ -112,10 +112,10 @@ export default async function Home() {
                   : Math.round((item.done / item.total) * 100);
               const action =
                 item.done === 0
-                  ? "Start"
+                  ? t("home.start")
                   : percent === 100
-                    ? "Review"
-                    : "Resume";
+                    ? t("home.review")
+                    : t("home.resume");
 
               return (
                 <li key={item.id}>
@@ -127,7 +127,7 @@ export default async function Home() {
                       <p className="truncate font-bold">{item.title}</p>
                       <div
                         role="progressbar"
-                        aria-label={`Progress in ${item.title}`}
+                        aria-label={t("home.progressIn", { title: item.title })}
                         aria-valuenow={percent}
                         aria-valuemin={0}
                         aria-valuemax={100}
@@ -140,7 +140,10 @@ export default async function Home() {
                       </div>
                     </div>
                     <span className="hidden text-sm text-muted sm:block">
-                      {item.done} of {item.total} lessons
+                      {t("home.lessonsDone", {
+                        done: item.done,
+                        total: item.total,
+                      })}
                     </span>
                     <span className="btn btn-primary btn-sm">{action}</span>
                   </Link>
@@ -155,17 +158,16 @@ export default async function Home() {
         <section className="mx-auto max-w-6xl px-5 pt-12">
           <div className="flex items-end justify-between gap-4">
             <h2 className="font-display text-2xl font-semibold">
-              Your courses
+              {t("home.yourCourses")}
             </h2>
             <Link href="/courses/new" className="btn btn-primary btn-sm">
-              Create a course
+              {t("home.createCourse")}
             </Link>
           </div>
 
           {myCourses.length === 0 ? (
             <p className="mt-4 border border-dashed border-rule bg-white p-6 text-muted">
-              You have not created a course yet. Start with a title and a short
-              description, then add lessons.
+              {t("home.noCourses")}
             </p>
           ) : (
             <ul className="mt-4 divide-y divide-rule border-y border-rule bg-white">
@@ -177,8 +179,13 @@ export default async function Home() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold">{course.title}</p>
                     <p className="text-sm text-muted">
-                      {course._count.lessons} lessons,{" "}
-                      {course._count.enrollments} students
+                      {t("courses.lessonCount", {
+                        count: course._count.lessons,
+                      })}
+                      ,{" "}
+                      {t("courses.studentCount", {
+                        count: course._count.enrollments,
+                      })}
                     </p>
                   </div>
                   <span
@@ -188,13 +195,13 @@ export default async function Home() {
                         : "bg-saffron/25 text-ink"
                     }`}
                   >
-                    {course.published ? "Published" : "Draft"}
+                    {course.published ? t("home.published") : t("home.draft")}
                   </span>
                   <Link
                     href={`/courses/${course.id}/edit`}
                     className="btn btn-ghost btn-sm"
                   >
-                    Edit
+                    {t("home.edit")}
                   </Link>
                 </li>
               ))}
@@ -206,19 +213,19 @@ export default async function Home() {
       <section className="mx-auto max-w-6xl px-5 py-12">
         <div className="flex items-end justify-between gap-4">
           <h2 className="font-display text-2xl font-semibold">
-            Latest courses
+            {t("home.latest")}
           </h2>
           <Link
             href="/courses"
             className="text-sm font-bold text-lapis underline underline-offset-4"
           >
-            See all courses
+            {t("home.seeAll")}
           </Link>
         </div>
 
         {latest.length === 0 ? (
           <p className="mt-6 border border-dashed border-rule bg-white p-8 text-center text-muted">
-            No courses are published yet. Check back soon.
+            {t("home.noneYet")}
           </p>
         ) : (
           <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

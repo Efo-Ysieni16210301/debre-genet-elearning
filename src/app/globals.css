@@ -23,8 +23,10 @@
   --color-fern: var(--fern);
   --color-madder: var(--madder);
 
-  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans:
+    var(--font-atkinson), var(--font-ethiopic-sans), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: var(--font-fraunces), var(--font-ethiopic), Georgia, serif;
   --font-geez: var(--font-ethiopic), "Noto Serif Ethiopic", serif;
 }
 

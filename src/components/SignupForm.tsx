@@ -4,10 +4,12 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useT } from "@/i18n/client";
 import PasswordField from "./PasswordField";
 
 export default function SignupForm() {
   const router = useRouter();
+  const { t } = useT();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -30,7 +32,7 @@ export default function SignupForm() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        setError(data?.error ?? "Something went wrong. Please try again.");
+        setError(data?.error ?? t("auth.api.generic"));
         setPending(false);
         return;
       }
@@ -49,9 +51,7 @@ export default function SignupForm() {
       router.push("/courses");
       router.refresh();
     } catch {
-      setError(
-        "Could not reach the server. Check your connection and try again.",
-      );
+      setError(t("auth.network"));
       setPending(false);
     }
   }
@@ -69,7 +69,7 @@ export default function SignupForm() {
 
       <div>
         <label htmlFor="signup-name" className="mb-1.5 block text-sm font-bold">
-          Full name
+          {t("auth.fullName")}
         </label>
         <input
           id="signup-name"
@@ -87,7 +87,7 @@ export default function SignupForm() {
           htmlFor="signup-email"
           className="mb-1.5 block text-sm font-bold"
         >
-          Email
+          {t("auth.email")}
         </label>
         <input
           id="signup-email"
@@ -102,11 +102,11 @@ export default function SignupForm() {
       </div>
 
       <PasswordField
-        label="Password"
+        label={t("auth.password")}
         name="password"
         autoComplete="new-password"
         minLength={8}
-        hint="At least 8 characters."
+        hint={t("auth.signup.passwordHint")}
       />
 
       <button
@@ -114,16 +114,16 @@ export default function SignupForm() {
         disabled={pending}
         className="btn btn-primary w-full"
       >
-        {pending ? "Creating your account..." : "Create account"}
+        {pending ? t("auth.signup.pending") : t("auth.signup.submit")}
       </button>
 
       <p className="text-sm text-muted">
-        Already have an account?{" "}
+        {t("auth.signup.haveAccount")}{" "}
         <Link
           href="/login"
           className="font-bold text-lapis underline underline-offset-4"
         >
-          Log in
+          {t("auth.signup.login")}
         </Link>
       </p>
     </form>

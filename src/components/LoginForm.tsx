@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useT } from "@/i18n/client";
 import PasswordField from "./PasswordField";
 
 function destination(callbackUrl: string | undefined) {
@@ -21,6 +22,7 @@ function destination(callbackUrl: string | undefined) {
 
 export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const router = useRouter();
+  const { t } = useT();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -41,9 +43,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       });
 
       if (result?.error) {
-        setError(
-          "The email or password is not correct. After 5 failed attempts you will need to wait 15 minutes.",
-        );
+        setError(t("auth.login.error"));
         setPending(false);
         return;
       }
@@ -51,9 +51,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       router.push(destination(callbackUrl));
       router.refresh();
     } catch {
-      setError(
-        "Could not reach the server. Check your connection and try again.",
-      );
+      setError(t("auth.network"));
       setPending(false);
     }
   }
@@ -71,7 +69,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
       <div>
         <label htmlFor="login-email" className="mb-1.5 block text-sm font-bold">
-          Email
+          {t("auth.email")}
         </label>
         <input
           id="login-email"
@@ -86,7 +84,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       </div>
 
       <PasswordField
-        label="Password"
+        label={t("auth.password")}
         name="password"
         autoComplete="current-password"
       />
@@ -96,16 +94,16 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
         disabled={pending}
         className="btn btn-primary w-full"
       >
-        {pending ? "Logging in..." : "Log in"}
+        {pending ? t("auth.login.pending") : t("auth.login.submit")}
       </button>
 
       <p className="text-sm text-muted">
-        New here?{" "}
+        {t("auth.login.newHere")}{" "}
         <Link
           href="/signup"
           className="font-bold text-lapis underline underline-offset-4"
         >
-          Create an account
+          {t("auth.login.createAccount")}
         </Link>
       </p>
     </form>

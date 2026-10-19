@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { getI18n } from "@/i18n/server";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
+  const { t } = await getI18n();
+
   try {
     const body = await request.json();
 
@@ -15,32 +18,35 @@ export async function POST(request: Request) {
 
     if (!name || !email || !password) {
       return NextResponse.json(
-        { error: "Name, email, and password are required." },
+        { error: t("auth.api.required") },
         { status: 400 },
       );
     }
 
     if (name.length > 100) {
-      return NextResponse.json({ error: "Name is too long." }, { status: 400 });
+      return NextResponse.json(
+        { error: t("auth.api.nameTooLong") },
+        { status: 400 },
+      );
     }
 
     if (!EMAIL_PATTERN.test(email)) {
       return NextResponse.json(
-        { error: "Please enter a valid email address." },
+        { error: t("auth.api.emailInvalid") },
         { status: 400 },
       );
     }
 
     if (password.length < 8) {
       return NextResponse.json(
-        { error: "Password must be at least 8 characters." },
+        { error: t("auth.api.passwordShort") },
         { status: 400 },
       );
     }
 
     if (password.length > 72) {
       return NextResponse.json(
-        { error: "Password must be 72 characters or fewer." },
+        { error: t("auth.api.passwordLong") },
         { status: 400 },
       );
     }
@@ -51,7 +57,7 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "A user with this email already exists." },
+        { error: t("auth.api.emailTaken") },
         { status: 409 },
       );
     }
@@ -72,9 +78,6 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("SIGNUP ERROR:", error);
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: t("auth.api.generic") }, { status: 500 });
   }
 }

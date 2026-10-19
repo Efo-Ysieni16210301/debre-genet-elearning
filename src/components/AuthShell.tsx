@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { getI18n } from "@/i18n/server";
 
-export default function AuthShell({
+export default async function AuthShell({
   heading,
   intro,
   children,
@@ -9,6 +10,8 @@ export default function AuthShell({
   intro: string;
   children: ReactNode;
 }) {
+  const { t } = await getI18n();
+
   return (
     <div className="grid md:min-h-136 md:grid-cols-[2fr_3fr]">
       <div className="bg-lapis text-white">
@@ -21,11 +24,11 @@ export default function AuthShell({
               ደብረ ገነት
             </p>
             <p className="mt-2 font-display text-xl">
-              Debre Genet Sunday School
+              {t("common.schoolTitle")}
             </p>
           </div>
           <p className="mt-8 hidden max-w-xs text-white/85 md:block">
-            Lessons, videos and quizzes from your teachers, in one place.
+            {t("auth.shellText")}
           </p>
         </div>
         <div className="tilet" aria-hidden />

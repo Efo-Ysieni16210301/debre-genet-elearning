@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getI18n } from "@/i18n/server";
 import AuthShell from "@/components/AuthShell";
 import SignupForm from "@/components/SignupForm";
 
-export const metadata: Metadata = { title: "Create an account" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("auth.signup.heading") };
+}
 
 export default async function SignupPage() {
-  const session = await auth();
+  const [session, { t }] = await Promise.all([auth(), getI18n()]);
 
   if (session) {
     redirect("/");
@@ -15,8 +19,8 @@ export default async function SignupPage() {
 
   return (
     <AuthShell
-      heading="Create an account"
-      intro="New accounts are student accounts. If you teach here, ask an administrator to change your role after you sign up."
+      heading={t("auth.signup.heading")}
+      intro={t("auth.signup.intro")}
     >
       <SignupForm />
     </AuthShell>

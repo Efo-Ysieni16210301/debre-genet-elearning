@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { spineFor } from "@/lib/spine";
+import { getI18n } from "@/i18n/server";
 
 type CourseCardProps = {
   id: string;
@@ -10,7 +11,7 @@ type CourseCardProps = {
   studentCount: number;
 };
 
-export default function CourseCard({
+export default async function CourseCard({
   id,
   title,
   description,
@@ -18,6 +19,8 @@ export default function CourseCard({
   lessonCount,
   studentCount,
 }: CourseCardProps) {
+  const { t } = await getI18n();
+
   return (
     <Link
       href={`/courses/${id}`}
@@ -32,11 +35,11 @@ export default function CourseCard({
           {description}
         </p>
         <p className="mt-auto pt-4 text-sm font-bold">
-          Taught by {teacherName}
+          {t("courses.taughtBy", { name: teacherName })}
         </p>
         <p className="mt-1 text-sm text-muted">
-          {lessonCount} {lessonCount === 1 ? "lesson" : "lessons"},{" "}
-          {studentCount} {studentCount === 1 ? "student" : "students"}
+          {t("courses.lessonCount", { count: lessonCount })},{" "}
+          {t("courses.studentCount", { count: studentCount })}
         </p>
       </div>
     </Link>
